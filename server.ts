@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -217,9 +218,16 @@ Rédige un plan d'action d'effort pour la journée afin de maintenir exactement 
 
 // Configuration Vite middlewares en développement
 async function startServer() {
+  const httpServer = http.createServer(app);
+
   if (process.env.NODE_ENV !== 'production') {
+    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: isHmrDisabled ? false : { server: httpServer },
+        watch: isHmrDisabled ? null : {},
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -231,7 +239,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 NutriFit AI Server running on http://0.0.0.0:${PORT}`);
   });
 }
