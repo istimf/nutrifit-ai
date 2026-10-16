@@ -1,0 +1,6 @@
+{
+  "name": "NutriFit AI - Scanner de Repas & Coach Poids Idéal",
+  "description": "Reconnaissance visuelle de vos repas par IA, estimation précise des calories et macronutriments, et recommandations d'activité Google Fit pour atteindre et maintenir votre poids idéal.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
