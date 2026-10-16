@@ -5,6 +5,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 dotenv.config();
 
@@ -213,6 +214,61 @@ Rédige un plan d'action d'effort pour la journée afin de maintenir exactement 
   } catch (error: any) {
     console.error('Coach recommendation error:', error);
     return res.status(500).json({ error: error.message || "Erreur de génération du conseil" });
+  }
+});
+
+// Endpoint de téléchargement de l'archive complète du projet (.tar.gz)
+app.get('/api/download-archive', (req, res) => {
+  try {
+    const archivePath = path.resolve(__dirname, 'dist', 'nutrifit-ai.tar.gz');
+    execSync("mkdir -p dist && tar --exclude='./node_modules' --exclude='./dist' --exclude='./.git' -czf dist/nutrifit-ai.tar.gz .");
+    res.download(archivePath, 'nutrifit-ai.tar.gz');
+  } catch (e: any) {
+    console.error('Archive generation error:', e);
+    res.status(500).json({ error: 'Impossible de générer l\'archive.' });
+  }
+});
+
+// Endpoint pour pousser le code vers le dépôt GitHub de l'utilisateur
+app.post('/api/git-push', (req, res) => {
+  const { repoUrl, personalAccessToken } = req.body;
+  if (!repoUrl) {
+    return res.status(400).json({ error: "L'URL de votre dépôt GitHub est requise (ex: https://github.com/votre_pseudo/nutrifit-ai)." });
+  }
+
+  try {
+    let cleanUrl = repoUrl.trim();
+    if (!cleanUrl.endsWith('.git')) {
+      cleanUrl = `${cleanUrl}.git`;
+    }
+
+    let authUrl = cleanUrl;
+    if (personalAccessToken && personalAccessToken.trim()) {
+      const token = encodeURIComponent(personalAccessToken.trim());
+      authUrl = cleanUrl.replace('https://', `https://${token}@`);
+    }
+
+    // Configurer le remote origin
+    execSync('git remote remove origin || true');
+    execSync(`git remote add origin ${authUrl}`);
+    const output = execSync('git push -u origin main --force', { encoding: 'utf-8', timeout: 30000 });
+
+    // Nettoyer l'URL du remote par sécurité
+    execSync('git remote remove origin || true');
+    execSync(`git remote add origin ${cleanUrl}`);
+
+    return res.json({
+      success: true,
+      message: 'Félicitations ! Votre code a été déployé avec succès sur votre dépôt GitHub.',
+      output,
+    });
+  } catch (err: any) {
+    // Nettoyer par sécurité
+    try { execSync('git remote remove origin || true'); } catch (e) {}
+    console.error('Git push error:', err);
+    return res.status(500).json({
+      error: err.stderr?.toString() || err.message || 'Échec du git push vers GitHub. Vérifiez votre URL ou votre Personal Access Token.',
+    });
   }
 });
 
